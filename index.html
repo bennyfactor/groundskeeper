@@ -73,6 +73,26 @@
                         </button>
                     </div>
 
+                    <!-- Backup Info -->
+                    <div x-show="backup?.info" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-gray-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide">Lawnchair Version</p>
+                            <p class="text-lg font-semibold text-gray-800" x-text="backup?.info?.lawnchairVersion || 'Unknown'"></p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide">Created</p>
+                            <p class="text-lg font-semibold text-gray-800" x-text="backup?.info?.createdAtDate?.toLocaleDateString() || 'Unknown'"></p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide">Grid Size</p>
+                            <p class="text-lg font-semibold text-gray-800" x-text="backup?.info?.gridState?.gridSize || 'Unknown'"></p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide">Dock Slots</p>
+                            <p class="text-lg font-semibold text-gray-800" x-text="backup?.info?.dockState?.hotseatCols || 'Unknown'"></p>
+                        </div>
+                    </div>
+
                     <!-- Images -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         <!-- Screenshot -->
@@ -179,6 +199,14 @@
                         backup.wallpaper = URL.createObjectURL(blob);
                     }
 
+                    // Parse info.pb
+                    const infoFile = zip.file('info.pb');
+                    if (infoFile) {
+                        const infoData = await infoFile.async('arraybuffer');
+                        backup.info = await this.parseBackupInfo(infoData);
+                        console.log('BackupInfo:', backup.info);
+                    }
+
                     this.backup = backup;
                     console.log('Backup parsed:', backup);
                 } catch (error) {
@@ -195,6 +223,30 @@
                 const sizes = ['B', 'KB', 'MB', 'GB'];
                 const i = Math.floor(Math.log(bytes) / Math.log(k));
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            },
+
+            async parseBackupInfo(data) {
+                const root = await protobuf.load('proto/lawnchair.proto');
+                const BackupInfo = root.lookupType('BackupInfo');
+                const message = BackupInfo.decode(new Uint8Array(data));
+                const info = BackupInfo.toObject(message, {
+                    longs: Number,
+                    defaults: true
+                });
+
+                // Parse grid size string (e.g., "5x7")
+                if (info.gridState?.gridSize) {
+                    const [cols, rows] = info.gridState.gridSize.split('x').map(Number);
+                    info.gridState.cols = cols;
+                    info.gridState.rows = rows;
+                }
+
+                // Convert timestamp
+                if (info.createdAt?.seconds) {
+                    info.createdAtDate = new Date(info.createdAt.seconds * 1000);
+                }
+
+                return info;
             }
         }
     }
