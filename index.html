@@ -24,131 +24,144 @@
         </div>
 
         <!-- Main app -->
-        <div x-show="!loading" class="p-4">
+        <div x-show="!loading" class="min-h-screen">
             <!-- Header -->
-            <header class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-gray-800">Groundskeeper</h1>
-                <p class="text-gray-600">Lawnchair Backup Viewer</p>
+            <header class="bg-white shadow-sm">
+                <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+                    <h1 class="text-2xl font-bold text-gray-800">Groundskeeper</h1>
+                    <p class="text-sm text-gray-500">Lawnchair Backup Viewer</p>
+                </div>
             </header>
 
-            <!-- Drop zone (shown when no backup loaded) -->
-            <div x-show="!backup" class="max-w-xl mx-auto">
+            <!-- No file loaded - show drop zone -->
+            <div x-show="!backup" class="max-w-2xl mx-auto mt-12 px-4">
                 <div
                     @dragover.prevent="dragging = true"
                     @dragleave.prevent="dragging = false"
                     @drop.prevent="handleDrop($event)"
-                    :class="dragging ? 'border-green-500 bg-green-50' : 'border-gray-300'"
+                    :class="dragging ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-white'"
                     class="border-2 border-dashed rounded-lg p-12 text-center transition-colors"
                 >
-                    <!-- Upload icon -->
                     <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                         <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-
-                    <p class="mt-4 text-lg text-gray-600">Drop your .lawnchairbackup file here</p>
-
-                    <label class="mt-4 inline-block">
-                        <span class="px-4 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-700 transition-colors">
+                    <p class="mt-4 text-lg text-gray-600">Drop your <code class="bg-gray-100 px-1 rounded">.lawnchairbackup</code> file here</p>
+                    <p class="mt-2 text-sm text-gray-500">or</p>
+                    <label class="mt-2 inline-block cursor-pointer">
+                        <span class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                             Browse files
                         </span>
-                        <input type="file" class="hidden" accept=".lawnchairbackup" @change="handleFileSelect($event)">
+                        <input type="file" class="hidden" accept=".lawnchairbackup,.zip" @change="handleFileSelect($event)">
                     </label>
-
-                    <p class="mt-4 text-sm text-gray-500">Your backup stays on your device. Nothing is uploaded.</p>
+                    <p class="mt-6 text-xs text-gray-400">Your backup stays on your device. Nothing is uploaded.</p>
                 </div>
             </div>
 
-            <!-- Backup loaded -->
-            <div x-show="backup" x-cloak class="max-w-2xl mx-auto">
-                <div class="bg-white rounded-lg shadow p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Backup Loaded</h2>
-                            <p class="text-gray-600" x-text="backup?.name"></p>
-                        </div>
-                        <button @click="backup = null" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
+            <!-- File loaded - Desktop layout -->
+            <div x-show="backup" class="hidden sm:flex h-[calc(100vh-73px)]">
+                <!-- Sidebar -->
+                <aside class="w-56 bg-white border-r overflow-y-auto">
+                    <nav class="p-4 space-y-1">
+                        <button
+                            @click="currentView = 'info'"
+                            :class="currentView === 'info' ? 'bg-green-100 text-green-800' : 'text-gray-600 hover:bg-gray-100'"
+                            class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            Backup Info
                         </button>
-                    </div>
 
-                    <!-- Backup Info -->
-                    <div x-show="backup?.info" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-gray-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-gray-500 uppercase tracking-wide">Lawnchair Version</p>
-                            <p class="text-lg font-semibold text-gray-800" x-text="backup?.info?.lawnchairVersion || 'Unknown'"></p>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-gray-500 uppercase tracking-wide">Created</p>
-                            <p class="text-lg font-semibold text-gray-800" x-text="backup?.info?.createdAtDate?.toLocaleDateString() || 'Unknown'"></p>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-gray-500 uppercase tracking-wide">Grid Size</p>
-                            <p class="text-lg font-semibold text-gray-800" x-text="backup?.info?.gridState?.gridSize || 'Unknown'"></p>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-gray-500 uppercase tracking-wide">Dock Slots</p>
-                            <p class="text-lg font-semibold text-gray-800" x-text="backup?.info?.dockState?.hotseatCols || 'Unknown'"></p>
-                        </div>
-                    </div>
-
-                    <!-- Layout Stats -->
-                    <div x-show="backup?.layout" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div class="bg-blue-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-blue-600 uppercase tracking-wide">Screens</p>
-                            <p class="text-lg font-semibold text-blue-800" x-text="backup?.layout?.screens?.length || 0"></p>
-                        </div>
-                        <div class="bg-blue-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-blue-600 uppercase tracking-wide">Dock Items</p>
-                            <p class="text-lg font-semibold text-blue-800" x-text="backup?.layout?.dock?.length || 0"></p>
-                        </div>
-                        <div class="bg-blue-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-blue-600 uppercase tracking-wide">Total Items</p>
-                            <p class="text-lg font-semibold text-blue-800" x-text="backup?.layout?.allItems?.length || 0"></p>
-                        </div>
-                        <div class="bg-blue-50 rounded-lg p-3 text-center">
-                            <p class="text-xs text-blue-600 uppercase tracking-wide">Folders</p>
-                            <p class="text-lg font-semibold text-blue-800" x-text="backup?.layout?.allItems?.filter(i => i.itemType === 2)?.length || 0"></p>
-                        </div>
-                    </div>
-
-                    <!-- Images -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <!-- Screenshot -->
-                        <div x-show="backup?.screenshot" class="text-center">
-                            <p class="text-sm text-gray-500 mb-2">Screenshot</p>
-                            <img :src="backup?.screenshot" alt="Screenshot" class="max-h-64 mx-auto rounded-lg shadow">
-                        </div>
-
-                        <!-- Wallpaper -->
-                        <div x-show="backup?.wallpaper" class="text-center">
-                            <p class="text-sm text-gray-500 mb-2">Wallpaper</p>
-                            <img :src="backup?.wallpaper" alt="Wallpaper" class="max-h-64 mx-auto rounded-lg shadow">
-                        </div>
-                    </div>
-
-                    <!-- No images message -->
-                    <div x-show="!backup?.screenshot && !backup?.wallpaper" class="text-center text-gray-500 mb-6">
-                        <p>No screenshot or wallpaper found in backup</p>
-                    </div>
-
-                    <!-- File list -->
-                    <details class="border rounded-lg">
-                        <summary class="px-4 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 rounded-lg">
-                            <span class="font-medium text-gray-700">Files in backup</span>
-                            <span class="text-gray-500 ml-2" x-text="'(' + (backup?.files?.length || 0) + ' files)'"></span>
-                        </summary>
-                        <ul class="max-h-64 overflow-y-auto p-4 space-y-1 text-sm font-mono">
-                            <template x-for="file in backup?.files || []" :key="file.path">
-                                <li class="flex justify-between text-gray-600">
-                                    <span x-text="file.path" :class="file.dir ? 'text-blue-600' : ''"></span>
-                                    <span x-show="!file.dir" class="text-gray-400" x-text="formatSize(file.size)"></span>
-                                </li>
+                        <div class="pt-2">
+                            <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Screens</p>
+                            <template x-for="screen in backup?.layout?.screens" :key="screen.number">
+                                <button
+                                    @click="currentView = 'screen-' + screen.number"
+                                    :class="currentView === 'screen-' + screen.number ? 'bg-green-100 text-green-800' : 'text-gray-600 hover:bg-gray-100'"
+                                    class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
+                                >
+                                    <span x-text="'Screen ' + (screen.number + 1)"></span>
+                                    <span class="text-xs text-gray-400 ml-1" x-text="'(' + screen.items.length + ')'"></span>
+                                </button>
                             </template>
-                        </ul>
-                    </details>
-                </div>
+                        </div>
+
+                        <button
+                            @click="currentView = 'dock'"
+                            :class="currentView === 'dock' ? 'bg-green-100 text-green-800' : 'text-gray-600 hover:bg-gray-100'"
+                            class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
+                        >
+                            Dock
+                            <span class="text-xs text-gray-400 ml-1" x-text="'(' + (backup?.layout?.dock?.length || 0) + ')'"></span>
+                        </button>
+
+                        <button
+                            x-show="backup?.wallpaper"
+                            @click="currentView = 'wallpaper'"
+                            :class="currentView === 'wallpaper' ? 'bg-green-100 text-green-800' : 'text-gray-600 hover:bg-gray-100'"
+                            class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
+                        >
+                            Wallpaper
+                        </button>
+                    </nav>
+                </aside>
+
+                <!-- Main content -->
+                <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
+                    <!-- Info View -->
+                    <div x-show="currentView === 'info'">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Backup Information</h2>
+                        <!-- Info content here -->
+                        <div class="grid grid-cols-2 gap-4 max-w-md">
+                            <div class="bg-white rounded-lg p-4 shadow-sm">
+                                <p class="text-xs text-gray-500">Lawnchair Version</p>
+                                <p class="font-medium" x-text="backup?.info?.lawnchairVersion"></p>
+                            </div>
+                            <div class="bg-white rounded-lg p-4 shadow-sm">
+                                <p class="text-xs text-gray-500">Created</p>
+                                <p class="font-medium" x-text="backup?.info?.createdAtDate?.toLocaleDateString()"></p>
+                            </div>
+                            <div class="bg-white rounded-lg p-4 shadow-sm">
+                                <p class="text-xs text-gray-500">Grid Size</p>
+                                <p class="font-medium" x-text="backup?.info?.gridState?.gridSize"></p>
+                            </div>
+                            <div class="bg-white rounded-lg p-4 shadow-sm">
+                                <p class="text-xs text-gray-500">Dock Slots</p>
+                                <p class="font-medium" x-text="backup?.info?.gridState?.hotseatCount"></p>
+                            </div>
+                        </div>
+
+                        <!-- Screenshot preview -->
+                        <div x-show="backup?.screenshot" class="mt-6">
+                            <h3 class="text-sm font-medium text-gray-600 mb-2">Preview</h3>
+                            <img :src="backup?.screenshot" class="rounded-lg border shadow-sm max-h-80 object-contain">
+                        </div>
+                    </div>
+
+                    <!-- Screen View (placeholder) -->
+                    <template x-for="screen in backup?.layout?.screens" :key="screen.number">
+                        <div x-show="currentView === 'screen-' + screen.number">
+                            <h2 class="text-lg font-semibold text-gray-800 mb-4" x-text="'Screen ' + (screen.number + 1)"></h2>
+                            <p class="text-gray-500" x-text="screen.items.length + ' items'"></p>
+                            <!-- Grid will go here -->
+                        </div>
+                    </template>
+
+                    <!-- Dock View (placeholder) -->
+                    <div x-show="currentView === 'dock'">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Dock</h2>
+                        <p class="text-gray-500" x-text="(backup?.layout?.dock?.length || 0) + ' items'"></p>
+                    </div>
+
+                    <!-- Wallpaper View -->
+                    <div x-show="currentView === 'wallpaper'">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Wallpaper</h2>
+                        <img :src="backup?.wallpaper" class="rounded-lg shadow-lg max-w-full">
+                    </div>
+                </main>
+            </div>
+
+            <!-- Mobile layout (placeholder for now) -->
+            <div x-show="backup" class="sm:hidden p-4">
+                <p class="text-gray-500">Mobile view coming soon. Please use a larger screen.</p>
             </div>
         </div>
     </div>
@@ -160,6 +173,7 @@
             sqlReady: false,
             dragging: false,
             backup: null,
+            currentView: 'info',  // 'info', 'screen-0', 'dock', 'wallpaper'
 
             async init() {
                 // Initialize sql.js
