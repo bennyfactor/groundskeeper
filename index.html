@@ -143,23 +143,40 @@
 
                             <!-- Grid -->
                             <div
-                                class="inline-grid gap-1 bg-gray-200 p-2 rounded-lg"
-                                :style="`grid-template-columns: repeat(${backup?.info?.gridState?.cols || 5}, minmax(0, 1fr))`"
+                                class="relative bg-gray-200 p-2 rounded-lg"
+                                :style="`
+                                    display: grid;
+                                    grid-template-columns: repeat(${backup?.info?.gridState?.cols || 5}, 64px);
+                                    grid-template-rows: repeat(${backup?.info?.gridState?.rows || 6}, 64px);
+                                    gap: 4px;
+                                `"
                             >
-                                <template x-for="row in (backup?.info?.gridState?.rows || 6)" :key="row">
-                                    <template x-for="col in (backup?.info?.gridState?.cols || 5)" :key="col">
-                                        <div
-                                            class="w-16 h-16 bg-white rounded-lg flex items-center justify-center text-xs"
-                                            :class="getItemAt(screen.items, col - 1, row - 1) ? 'ring-2 ring-green-400' : 'opacity-50'"
-                                        >
-                                            <template x-if="getItemAt(screen.items, col - 1, row - 1)">
-                                                <div class="text-center p-1 overflow-hidden">
-                                                    <span class="text-xl" x-text="getItemIcon(getItemAt(screen.items, col - 1, row - 1))"></span>
-                                                    <p class="text-[10px] leading-tight truncate mt-1" x-text="getItemAt(screen.items, col - 1, row - 1)?.title || 'Untitled'"></p>
-                                                </div>
-                                            </template>
+                                <!-- Empty cells for background -->
+                                <template x-for="i in ((backup?.info?.gridState?.cols || 5) * (backup?.info?.gridState?.rows || 6))" :key="'cell-' + i">
+                                    <div class="bg-white/50 rounded-lg"></div>
+                                </template>
+
+                                <!-- Items positioned on grid -->
+                                <template x-for="item in screen.items" :key="item._id">
+                                    <div
+                                        class="absolute bg-white rounded-lg shadow-sm flex items-center justify-center p-1 ring-1 ring-gray-200 hover:ring-green-400 transition-shadow cursor-pointer"
+                                        :style="`
+                                            left: calc(8px + ${item.cellX} * 68px);
+                                            top: calc(8px + ${item.cellY} * 68px);
+                                            width: calc(${item.spanX || 1} * 64px + ${(item.spanX || 1) - 1} * 4px);
+                                            height: calc(${item.spanY || 1} * 64px + ${(item.spanY || 1) - 1} * 4px);
+                                        `"
+                                        :title="item.title + (item.packageName ? ' (' + item.packageName + ')' : '')"
+                                    >
+                                        <div class="text-center overflow-hidden">
+                                            <span class="text-xl" x-text="getItemIcon(item)"></span>
+                                            <p
+                                                class="text-[10px] leading-tight truncate mt-1"
+                                                :class="(item.spanX || 1) > 1 ? 'max-w-[100px]' : 'max-w-[50px]'"
+                                                x-text="item.title || (item.itemType === 4 ? 'Widget' : 'Untitled')"
+                                            ></p>
                                         </div>
-                                    </template>
+                                    </div>
                                 </template>
                             </div>
 
@@ -342,9 +359,15 @@
             },
 
             getItemIcon(item) {
-                // Return emoji for icon placeholder
                 if (item.itemType === 2) return '📁';
-                if (item.itemType === 4) return '📦';
+                if (item.itemType === 4) {
+                    // Try to identify widget type from provider
+                    if (item.appWidgetProvider?.includes('weather')) return '🌤️';
+                    if (item.appWidgetProvider?.includes('clock')) return '🕐';
+                    if (item.appWidgetProvider?.includes('calendar')) return '📅';
+                    if (item.appWidgetProvider?.includes('music')) return '🎵';
+                    return '📦';
+                }
                 return '📱';
             },
 
