@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groundskeeper - Lawnchair Backup Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sql.js@1.11.0/dist/sql-wasm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.4.0/dist/protobuf.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div x-data="groundskeeper()" x-init="init()" class="min-h-screen">
+        <!-- Loading state -->
+        <div x-show="loading" x-cloak class="flex items-center justify-center h-screen">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Main app (placeholder) -->
+        <div x-show="!loading" class="p-4">
+            <h1 class="text-2xl font-bold text-gray-800">Groundskeeper</h1>
+            <p class="text-gray-600">Lawnchair Backup Viewer</p>
+            <p class="mt-4 text-sm text-gray-500">Libraries loaded successfully.</p>
+        </div>
+    </div>
+
+    <script>
+    function groundskeeper() {
+        return {
+            loading: true,
+            sqlReady: false,
+
+            async init() {
+                // Initialize sql.js
+                this.SQL = await initSqlJs({
+                    locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.11.0/dist/${file}`
+                });
+                this.sqlReady = true;
+                this.loading = false;
+                console.log('Groundskeeper initialized');
+            }
+        }
+    }
+    </script>
+</body>
+</html>
