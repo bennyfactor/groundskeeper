@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Groundskeeper - Lawnchair Backup Viewer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+    <meta name="description" content="View and explore Lawnchair launcher backup files in your browser. Privacy-first: files never leave your device.">
+    <meta property="og:title" content="Groundskeeper - Lawnchair Backup Viewer">
+    <meta property="og:description" content="View and explore Lawnchair launcher backup files in your browser.">
+    <meta property="og:type" content="website">
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -397,6 +402,13 @@
                 </div>
             </div>
         </div>
+
+        <!-- Footer (shown when no backup loaded) -->
+        <footer x-show="!backup" class="fixed bottom-0 inset-x-0 py-4 text-center text-xs text-gray-400">
+            <a href="https://github.com/bennyfactor/groundskeeper" class="hover:text-gray-600">View on GitHub</a>
+            <span class="mx-2">•</span>
+            <span>Made for the Lawnchair community</span>
+        </footer>
 
         <!-- Folder Modal -->
         <div
