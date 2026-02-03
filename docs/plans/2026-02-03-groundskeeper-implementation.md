@@ -1,7 +1,5 @@
 # Groundskeeper Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Build a client-side web app that views Lawnchair launcher backup files.
 
 **Architecture:** Single HTML file with Alpine.js for reactivity, Tailwind for styling, JSZip for unpacking backups, sql.js for reading SQLite, and protobuf.js for parsing metadata. All processing client-side.
