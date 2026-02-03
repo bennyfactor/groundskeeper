@@ -66,6 +66,24 @@
                 </div>
             </div>
 
+            <!-- Error display -->
+            <div x-show="error" class="max-w-2xl mx-auto mt-4 px-4">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                    <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div>
+                        <p class="font-medium text-red-800">Error loading backup</p>
+                        <p class="text-sm text-red-600 mt-1" x-text="error"></p>
+                    </div>
+                    <button @click="error = null" class="ml-auto text-red-400 hover:text-red-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
             <!-- File loaded - Desktop layout -->
             <div x-show="backup" class="hidden sm:flex h-[calc(100vh-73px)]">
                 <!-- Sidebar -->
@@ -421,6 +439,7 @@
             sqlReady: false,
             dragging: false,
             backup: null,
+            error: null,
             currentView: 'info',  // 'info', 'screen-0', 'dock', 'wallpaper'
             selectedFolder: null,
             mobileTab: 'info',  // 'info', 'screens', 'dock', 'wallpaper'
@@ -466,8 +485,20 @@
             async loadFile(file) {
                 console.log('Loading file:', file.name);
                 this.loading = true;
+                this.error = null;
+
                 try {
+                    // Validate file extension
+                    if (!file.name.endsWith('.lawnchairbackup') && !file.name.endsWith('.zip')) {
+                        throw new Error('Please select a .lawnchairbackup file');
+                    }
+
                     const zip = await JSZip.loadAsync(file);
+
+                    // Validate it's a Lawnchair backup
+                    if (!zip.file('launcher.db')) {
+                        throw new Error('This doesn\'t appear to be a valid Lawnchair backup (missing launcher.db)');
+                    }
 
                     // List contents for debugging
                     const files = [];
@@ -516,7 +547,7 @@
                     console.log('Backup parsed:', backup);
                 } catch (error) {
                     console.error('Error loading backup:', error);
-                    alert('Error loading backup: ' + error.message);
+                    this.error = error.message;
                 } finally {
                     this.loading = false;
                 }
