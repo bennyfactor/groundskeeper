@@ -23,11 +23,46 @@
             </div>
         </div>
 
-        <!-- Main app (placeholder) -->
+        <!-- Main app -->
         <div x-show="!loading" class="p-4">
-            <h1 class="text-2xl font-bold text-gray-800">Groundskeeper</h1>
-            <p class="text-gray-600">Lawnchair Backup Viewer</p>
-            <p class="mt-4 text-sm text-gray-500">Libraries loaded successfully.</p>
+            <!-- Header -->
+            <header class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800">Groundskeeper</h1>
+                <p class="text-gray-600">Lawnchair Backup Viewer</p>
+            </header>
+
+            <!-- Drop zone (shown when no backup loaded) -->
+            <div x-show="!backup" class="max-w-xl mx-auto">
+                <div
+                    @dragover.prevent="dragging = true"
+                    @dragleave.prevent="dragging = false"
+                    @drop.prevent="handleDrop($event)"
+                    :class="dragging ? 'border-green-500 bg-green-50' : 'border-gray-300'"
+                    class="border-2 border-dashed rounded-lg p-12 text-center transition-colors"
+                >
+                    <!-- Upload icon -->
+                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+
+                    <p class="mt-4 text-lg text-gray-600">Drop your .lawnchairbackup file here</p>
+
+                    <label class="mt-4 inline-block">
+                        <span class="px-4 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-700 transition-colors">
+                            Browse files
+                        </span>
+                        <input type="file" class="hidden" accept=".lawnchairbackup" @change="handleFileSelect($event)">
+                    </label>
+
+                    <p class="mt-4 text-sm text-gray-500">Your backup stays on your device. Nothing is uploaded.</p>
+                </div>
+            </div>
+
+            <!-- Backup loaded placeholder -->
+            <div x-show="backup" x-cloak class="max-w-xl mx-auto text-center">
+                <p class="text-lg text-green-600 font-semibold">Backup loaded!</p>
+                <p class="text-gray-600" x-text="backup?.name"></p>
+            </div>
         </div>
     </div>
 
@@ -36,6 +71,8 @@
         return {
             loading: true,
             sqlReady: false,
+            dragging: false,
+            backup: null,
 
             async init() {
                 // Initialize sql.js
@@ -45,6 +82,26 @@
                 this.sqlReady = true;
                 this.loading = false;
                 console.log('Groundskeeper initialized');
+            },
+
+            handleDrop(event) {
+                this.dragging = false;
+                const file = event.dataTransfer.files[0];
+                if (file) {
+                    this.loadFile(file);
+                }
+            },
+
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.loadFile(file);
+                }
+            },
+
+            loadFile(file) {
+                console.log('Loading file:', file.name);
+                this.backup = { name: file.name };
             }
         }
     }
