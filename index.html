@@ -199,10 +199,40 @@
                         </div>
                     </template>
 
-                    <!-- Dock View (placeholder) -->
+                    <!-- Dock View -->
                     <div x-show="currentView === 'dock'">
                         <h2 class="text-lg font-semibold text-gray-800 mb-4">Dock</h2>
-                        <p class="text-gray-500" x-text="(backup?.layout?.dock?.length || 0) + ' items'"></p>
+
+                        <!-- Visual dock -->
+                        <div class="inline-flex gap-2 bg-gray-200 p-3 rounded-2xl">
+                            <template x-for="item in backup?.layout?.dock" :key="item._id">
+                                <div
+                                    class="w-14 h-14 bg-white rounded-xl flex items-center justify-center shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                                    :title="item.title + (item.packageName ? ' (' + item.packageName + ')' : '')"
+                                >
+                                    <div class="text-center">
+                                        <span class="text-2xl" x-text="getItemIcon(item)"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Dock items list -->
+                        <div class="mt-6 max-w-md">
+                            <h3 class="text-sm font-medium text-gray-600 mb-2">Dock Items</h3>
+                            <div class="bg-white rounded-lg shadow-sm divide-y">
+                                <template x-for="(item, index) in backup?.layout?.dock" :key="item._id">
+                                    <div class="px-4 py-2 flex items-center gap-3">
+                                        <span class="text-gray-400 text-sm w-4" x-text="index + 1"></span>
+                                        <span class="text-xl" x-text="getItemIcon(item)"></span>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-medium truncate" x-text="item.title || 'Untitled'"></p>
+                                            <p class="text-xs text-gray-500 truncate" x-text="item.packageName || getItemTypeLabel(item.itemType)"></p>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Wallpaper View -->
