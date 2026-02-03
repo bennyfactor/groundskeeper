@@ -244,9 +244,130 @@
                 </main>
             </div>
 
-            <!-- Mobile layout (placeholder for now) -->
-            <div x-show="backup" class="sm:hidden p-4">
-                <p class="text-gray-500">Mobile view coming soon. Please use a larger screen.</p>
+            <!-- Mobile layout -->
+            <div x-show="backup" class="sm:hidden flex flex-col h-[calc(100vh-73px)]">
+                <!-- Tab bar -->
+                <div class="bg-white border-b px-2 py-1 flex gap-1 overflow-x-auto">
+                    <button
+                        @click="mobileTab = 'info'"
+                        :class="mobileTab === 'info' ? 'bg-green-100 text-green-800' : 'text-gray-600'"
+                        class="px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap"
+                    >Info</button>
+                    <button
+                        @click="mobileTab = 'screens'"
+                        :class="mobileTab === 'screens' ? 'bg-green-100 text-green-800' : 'text-gray-600'"
+                        class="px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap"
+                    >Screens</button>
+                    <button
+                        @click="mobileTab = 'dock'"
+                        :class="mobileTab === 'dock' ? 'bg-green-100 text-green-800' : 'text-gray-600'"
+                        class="px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap"
+                    >Dock</button>
+                    <button
+                        x-show="backup?.wallpaper"
+                        @click="mobileTab = 'wallpaper'"
+                        :class="mobileTab === 'wallpaper' ? 'bg-green-100 text-green-800' : 'text-gray-600'"
+                        class="px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap"
+                    >Wallpaper</button>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 overflow-y-auto p-4">
+                    <!-- Info tab -->
+                    <div x-show="mobileTab === 'info'">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                                <p class="text-xs text-gray-500">Version</p>
+                                <p class="font-medium" x-text="backup?.info?.lawnchairVersion"></p>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                                <p class="text-xs text-gray-500">Created</p>
+                                <p class="font-medium" x-text="backup?.info?.createdAtDate?.toLocaleDateString()"></p>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                                <p class="text-xs text-gray-500">Grid</p>
+                                <p class="font-medium" x-text="backup?.info?.gridState?.gridSize"></p>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                                <p class="text-xs text-gray-500">Dock Slots</p>
+                                <p class="font-medium" x-text="backup?.info?.gridState?.hotseatCount"></p>
+                            </div>
+                        </div>
+                        <img x-show="backup?.screenshot" :src="backup?.screenshot" class="mt-4 rounded-lg shadow-sm w-full">
+                    </div>
+
+                    <!-- Screens tab -->
+                    <div x-show="mobileTab === 'screens'">
+                        <template x-if="backup?.layout?.screens?.length">
+                            <div>
+                                <!-- Screen selector -->
+                                <div class="flex items-center justify-between mb-4">
+                                    <button
+                                        @click="mobileScreenIndex = Math.max(0, mobileScreenIndex - 1)"
+                                        :disabled="mobileScreenIndex === 0"
+                                        class="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                                        </svg>
+                                    </button>
+                                    <span class="text-sm text-gray-600">
+                                        Screen <span x-text="mobileScreenIndex + 1"></span> of <span x-text="backup?.layout?.screens?.length"></span>
+                                    </span>
+                                    <button
+                                        @click="mobileScreenIndex = Math.min(backup?.layout?.screens?.length - 1, mobileScreenIndex + 1)"
+                                        :disabled="mobileScreenIndex >= backup?.layout?.screens?.length - 1"
+                                        class="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30"
+                                    >
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Items list for current screen -->
+                                <div class="bg-white rounded-lg shadow-sm divide-y">
+                                    <template x-for="item in backup?.layout?.screens[mobileScreenIndex]?.items" :key="item._id">
+                                        <div
+                                            class="px-4 py-2 flex items-center gap-3"
+                                            @click="item.itemType === 2 ? selectedFolder = item : null"
+                                            :class="item.itemType === 2 ? 'cursor-pointer hover:bg-gray-50' : ''"
+                                        >
+                                            <span class="text-xl" x-text="getItemIcon(item)"></span>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="font-medium truncate" x-text="item.title || 'Untitled'"></p>
+                                                <p class="text-xs text-gray-500 truncate" x-text="item.packageName || getItemTypeLabel(item.itemType)"></p>
+                                            </div>
+                                            <template x-if="item.itemType === 2">
+                                                <span class="text-xs text-gray-400" x-text="(item.contents?.length || 0) + ' items'"></span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Dock tab -->
+                    <div x-show="mobileTab === 'dock'">
+                        <div class="bg-white rounded-lg shadow-sm divide-y">
+                            <template x-for="item in backup?.layout?.dock" :key="item._id">
+                                <div class="px-4 py-2 flex items-center gap-3">
+                                    <span class="text-xl" x-text="getItemIcon(item)"></span>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-medium truncate" x-text="item.title || 'Untitled'"></p>
+                                        <p class="text-xs text-gray-500 truncate" x-text="item.packageName || 'App'"></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Wallpaper tab -->
+                    <div x-show="mobileTab === 'wallpaper'">
+                        <img :src="backup?.wallpaper" class="rounded-lg shadow-lg w-full">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -293,6 +414,8 @@
             backup: null,
             currentView: 'info',  // 'info', 'screen-0', 'dock', 'wallpaper'
             selectedFolder: null,
+            mobileTab: 'info',  // 'info', 'screens', 'dock', 'wallpaper'
+            mobileScreenIndex: 0,
 
             async init() {
                 // Initialize sql.js
