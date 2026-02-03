@@ -27,9 +27,18 @@
         <div x-show="!loading" class="min-h-screen">
             <!-- Header -->
             <header class="bg-white shadow-sm">
-                <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-                    <h1 class="text-2xl font-bold text-gray-800">Groundskeeper</h1>
-                    <p class="text-sm text-gray-500">Lawnchair Backup Viewer</p>
+                <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800">Groundskeeper</h1>
+                        <p class="text-sm text-gray-500" x-text="backup ? backup.name : 'Lawnchair Backup Viewer'"></p>
+                    </div>
+                    <button
+                        x-show="backup"
+                        @click="resetBackup()"
+                        class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        Load different file
+                    </button>
                 </div>
             </header>
 
@@ -425,6 +434,18 @@
                 this.sqlReady = true;
                 this.loading = false;
                 console.log('Groundskeeper initialized');
+            },
+
+            resetBackup() {
+                // Revoke object URLs to prevent memory leaks
+                if (this.backup?.screenshot) URL.revokeObjectURL(this.backup.screenshot);
+                if (this.backup?.wallpaper) URL.revokeObjectURL(this.backup.wallpaper);
+
+                this.backup = null;
+                this.currentView = 'info';
+                this.mobileTab = 'info';
+                this.mobileScreenIndex = 0;
+                this.selectedFolder = null;
             },
 
             handleDrop(event) {
