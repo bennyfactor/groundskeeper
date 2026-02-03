@@ -58,10 +58,57 @@
                 </div>
             </div>
 
-            <!-- Backup loaded placeholder -->
-            <div x-show="backup" x-cloak class="max-w-xl mx-auto text-center">
-                <p class="text-lg text-green-600 font-semibold">Backup loaded!</p>
-                <p class="text-gray-600" x-text="backup?.name"></p>
+            <!-- Backup loaded -->
+            <div x-show="backup" x-cloak class="max-w-2xl mx-auto">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Backup Loaded</h2>
+                            <p class="text-gray-600" x-text="backup?.name"></p>
+                        </div>
+                        <button @click="backup = null" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Images -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <!-- Screenshot -->
+                        <div x-show="backup?.screenshot" class="text-center">
+                            <p class="text-sm text-gray-500 mb-2">Screenshot</p>
+                            <img :src="backup?.screenshot" alt="Screenshot" class="max-h-64 mx-auto rounded-lg shadow">
+                        </div>
+
+                        <!-- Wallpaper -->
+                        <div x-show="backup?.wallpaper" class="text-center">
+                            <p class="text-sm text-gray-500 mb-2">Wallpaper</p>
+                            <img :src="backup?.wallpaper" alt="Wallpaper" class="max-h-64 mx-auto rounded-lg shadow">
+                        </div>
+                    </div>
+
+                    <!-- No images message -->
+                    <div x-show="!backup?.screenshot && !backup?.wallpaper" class="text-center text-gray-500 mb-6">
+                        <p>No screenshot or wallpaper found in backup</p>
+                    </div>
+
+                    <!-- File list -->
+                    <details class="border rounded-lg">
+                        <summary class="px-4 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 rounded-lg">
+                            <span class="font-medium text-gray-700">Files in backup</span>
+                            <span class="text-gray-500 ml-2" x-text="'(' + (backup?.files?.length || 0) + ' files)'"></span>
+                        </summary>
+                        <ul class="max-h-64 overflow-y-auto p-4 space-y-1 text-sm font-mono">
+                            <template x-for="file in backup?.files || []" :key="file.path">
+                                <li class="flex justify-between text-gray-600">
+                                    <span x-text="file.path" :class="file.dir ? 'text-blue-600' : ''"></span>
+                                    <span x-show="!file.dir" class="text-gray-400" x-text="formatSize(file.size)"></span>
+                                </li>
+                            </template>
+                        </ul>
+                    </details>
+                </div>
             </div>
         </div>
     </div>
@@ -99,9 +146,55 @@
                 }
             },
 
-            loadFile(file) {
+            async loadFile(file) {
                 console.log('Loading file:', file.name);
-                this.backup = { name: file.name };
+                this.loading = true;
+                try {
+                    const zip = await JSZip.loadAsync(file);
+
+                    // List contents for debugging
+                    const files = [];
+                    zip.forEach((path, entry) => {
+                        files.push({ path, dir: entry.dir, size: entry._data?.uncompressedSize || 0 });
+                    });
+                    console.log('Backup contents:', files);
+
+                    // Extract what we need
+                    const backup = {
+                        name: file.name,
+                        files: files
+                    };
+
+                    // Screenshot
+                    const screenshotFile = zip.file('screenshot.png');
+                    if (screenshotFile) {
+                        const blob = await screenshotFile.async('blob');
+                        backup.screenshot = URL.createObjectURL(blob);
+                    }
+
+                    // Wallpaper
+                    const wallpaperFile = zip.file('wallpaper.png');
+                    if (wallpaperFile) {
+                        const blob = await wallpaperFile.async('blob');
+                        backup.wallpaper = URL.createObjectURL(blob);
+                    }
+
+                    this.backup = backup;
+                    console.log('Backup parsed:', backup);
+                } catch (error) {
+                    console.error('Error loading backup:', error);
+                    alert('Error loading backup: ' + error.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            formatSize(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
             }
         }
     }
