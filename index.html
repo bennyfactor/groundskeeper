@@ -136,12 +136,49 @@
                         </div>
                     </div>
 
-                    <!-- Screen View (placeholder) -->
+                    <!-- Screen View -->
                     <template x-for="screen in backup?.layout?.screens" :key="screen.number">
                         <div x-show="currentView === 'screen-' + screen.number">
                             <h2 class="text-lg font-semibold text-gray-800 mb-4" x-text="'Screen ' + (screen.number + 1)"></h2>
-                            <p class="text-gray-500" x-text="screen.items.length + ' items'"></p>
-                            <!-- Grid will go here -->
+
+                            <!-- Grid -->
+                            <div
+                                class="inline-grid gap-1 bg-gray-200 p-2 rounded-lg"
+                                :style="`grid-template-columns: repeat(${backup?.info?.gridState?.cols || 5}, minmax(0, 1fr))`"
+                            >
+                                <template x-for="row in (backup?.info?.gridState?.rows || 6)" :key="row">
+                                    <template x-for="col in (backup?.info?.gridState?.cols || 5)" :key="col">
+                                        <div
+                                            class="w-16 h-16 bg-white rounded-lg flex items-center justify-center text-xs"
+                                            :class="getItemAt(screen.items, col - 1, row - 1) ? 'ring-2 ring-green-400' : 'opacity-50'"
+                                        >
+                                            <template x-if="getItemAt(screen.items, col - 1, row - 1)">
+                                                <div class="text-center p-1 overflow-hidden">
+                                                    <span class="text-xl" x-text="getItemIcon(getItemAt(screen.items, col - 1, row - 1))"></span>
+                                                    <p class="text-[10px] leading-tight truncate mt-1" x-text="getItemAt(screen.items, col - 1, row - 1)?.title || 'Untitled'"></p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </template>
+                            </div>
+
+                            <!-- Items list -->
+                            <div class="mt-6">
+                                <h3 class="text-sm font-medium text-gray-600 mb-2">Items on this screen</h3>
+                                <div class="bg-white rounded-lg shadow-sm divide-y">
+                                    <template x-for="item in screen.items" :key="item._id">
+                                        <div class="px-4 py-2 flex items-center gap-3">
+                                            <span class="text-xl" x-text="getItemIcon(item)"></span>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="font-medium truncate" x-text="item.title || 'Untitled'"></p>
+                                                <p class="text-xs text-gray-500" x-text="item.packageName || getItemTypeLabel(item.itemType)"></p>
+                                            </div>
+                                            <span class="text-xs text-gray-400" x-text="`(${item.cellX}, ${item.cellY})`"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </template>
 
@@ -289,6 +326,26 @@
                 }
 
                 return info;
+            },
+
+            getItemAt(items, x, y) {
+                return items.find(item =>
+                    item.cellX === x &&
+                    item.cellY === y &&
+                    item.container === -100  // Desktop only
+                );
+            },
+
+            getItemTypeLabel(itemType) {
+                const types = { 0: 'App', 2: 'Folder', 4: 'Widget', 6: 'Shortcut' };
+                return types[itemType] || 'Unknown';
+            },
+
+            getItemIcon(item) {
+                // Return emoji for icon placeholder
+                if (item.itemType === 2) return '📁';
+                if (item.itemType === 4) return '📦';
+                return '📱';
             },
 
             parseDatabase(data) {
