@@ -93,6 +93,26 @@
                         </div>
                     </div>
 
+                    <!-- Layout Stats -->
+                    <div x-show="backup?.layout" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-blue-600 uppercase tracking-wide">Screens</p>
+                            <p class="text-lg font-semibold text-blue-800" x-text="backup?.layout?.screens?.length || 0"></p>
+                        </div>
+                        <div class="bg-blue-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-blue-600 uppercase tracking-wide">Dock Items</p>
+                            <p class="text-lg font-semibold text-blue-800" x-text="backup?.layout?.dock?.length || 0"></p>
+                        </div>
+                        <div class="bg-blue-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-blue-600 uppercase tracking-wide">Total Items</p>
+                            <p class="text-lg font-semibold text-blue-800" x-text="backup?.layout?.allItems?.length || 0"></p>
+                        </div>
+                        <div class="bg-blue-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-blue-600 uppercase tracking-wide">Folders</p>
+                            <p class="text-lg font-semibold text-blue-800" x-text="backup?.layout?.allItems?.filter(i => i.itemType === 2)?.length || 0"></p>
+                        </div>
+                    </div>
+
                     <!-- Images -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         <!-- Screenshot -->
@@ -207,6 +227,14 @@
                         console.log('BackupInfo:', backup.info);
                     }
 
+                    // Parse launcher.db
+                    const dbFile = zip.file('launcher.db');
+                    if (dbFile) {
+                        const dbData = await dbFile.async('arraybuffer');
+                        backup.layout = this.parseDatabase(dbData);
+                        console.log('Layout:', backup.layout);
+                    }
+
                     this.backup = backup;
                     console.log('Backup parsed:', backup);
                 } catch (error) {
@@ -247,6 +275,80 @@
                 }
 
                 return info;
+            },
+
+            parseDatabase(data) {
+                const db = new this.SQL.Database(new Uint8Array(data));
+
+                // Query favorites table
+                const favoritesResult = db.exec(`
+                    SELECT _id, title, intent, container, screen,
+                           cellX, cellY, spanX, spanY, itemType,
+                           appWidgetProvider, icon, rank
+                    FROM favorites
+                `);
+
+                if (!favoritesResult.length) {
+                    return { screens: [], dock: [], folders: {} };
+                }
+
+                const columns = favoritesResult[0].columns;
+                const rows = favoritesResult[0].values;
+
+                // Convert to objects
+                const items = rows.map(row => {
+                    const item = {};
+                    columns.forEach((col, i) => item[col] = row[i]);
+
+                    // Parse intent to get package name
+                    if (item.intent) {
+                        const match = item.intent.match(/component=([^;/]+)/);
+                        if (match) item.packageName = match[1];
+                    }
+
+                    return item;
+                });
+
+                // Group by container
+                const CONTAINER_DESKTOP = -100;
+                const CONTAINER_HOTSEAT = -101;
+
+                const screens = {};
+                const dock = [];
+                const folders = {};
+
+                items.forEach(item => {
+                    if (item.container === CONTAINER_DESKTOP) {
+                        const screenNum = item.screen || 0;
+                        if (!screens[screenNum]) screens[screenNum] = [];
+                        screens[screenNum].push(item);
+                    } else if (item.container === CONTAINER_HOTSEAT) {
+                        dock.push(item);
+                    } else if (item.container > 0) {
+                        // Item is inside a folder
+                        if (!folders[item.container]) folders[item.container] = [];
+                        folders[item.container].push(item);
+                    }
+                });
+
+                // Sort dock by rank/cellX
+                dock.sort((a, b) => (a.rank || a.cellX) - (b.rank || b.cellX));
+
+                // Attach folder contents to folder items
+                items.filter(i => i.itemType === 2).forEach(folder => {
+                    folder.contents = folders[folder._id] || [];
+                    folder.contents.sort((a, b) => a.rank - b.rank);
+                });
+
+                db.close();
+
+                return {
+                    screens: Object.entries(screens)
+                        .sort(([a], [b]) => Number(a) - Number(b))
+                        .map(([num, items]) => ({ number: Number(num), items })),
+                    dock,
+                    allItems: items
+                };
             }
         }
     }
