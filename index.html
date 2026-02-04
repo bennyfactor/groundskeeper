@@ -466,6 +466,9 @@
             selectedFolder: null,
             mobileTab: 'info',  // 'info', 'screens', 'dock', 'wallpaper'
             mobileScreenIndex: 0,
+            novaMode: false,           // true when processing Nova backup
+            novaBackup: null,          // parsed Nova data for preview
+            novaPreview: null,         // what will/won't transfer
 
             async init() {
                 // Initialize sql.js
@@ -501,6 +504,13 @@
                 const file = event.target.files[0];
                 if (file) {
                     this.loadFile(file);
+                }
+            },
+
+            handleNovaFileSelect(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.loadNovaFile(file);
                 }
             },
 
