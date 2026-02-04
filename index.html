@@ -682,7 +682,7 @@
                     }
 
                     this.backup = backup;
-                    console.log('Backup parsed:', backup);
+                    // console.log('Backup parsed:', backup);
                 } catch (error) {
                     console.error('Error loading backup:', error);
                     this.error = error.message;
@@ -869,8 +869,8 @@
                         console.warn('Nova backup appears to be empty');
                     }
 
-                    console.log('Nova backup parsed:', this.novaBackup);
-                    console.log('Preview:', this.novaPreview);
+                    // console.log('Nova backup parsed:', this.novaBackup);
+                    // console.log('Preview:', this.novaPreview);
                 } catch (error) {
                     console.error('Error loading Nova backup:', error);
                     this.error = error.message;
