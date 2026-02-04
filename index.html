@@ -925,10 +925,17 @@
                     item.spanY = Math.max(1, Math.round(item.spanY || 1));
                     return item;
                 }).filter(item =>
-                    // Filter out metadata rows, invalid entries, and Nova internal actions
-                    item._id > 0 && item.itemType >= 0 &&
-                    !(item.intent && item.intent.includes('LAUNCHER_ACTION=APP_DRAWER'))
-                );
+                    // Filter out metadata rows and invalid entries
+                    item._id > 0 && item.itemType >= 0
+                ).map(item => {
+                    // Convert Nova app drawer action to Lawnchair all-apps intent
+                    if (item.intent && item.intent.includes('LAUNCHER_ACTION=APP_DRAWER')) {
+                        item.intent = '#Intent;action=android.intent.action.ALL_APPS;component=app.lawnchair/.LawnchairLauncher;end';
+                        item.title = 'All apps';
+                        item.isAllApps = true;
+                    }
+                    return item;
+                });
 
                 const CONTAINER_DESKTOP = -100;
                 const CONTAINER_HOTSEAT = -101;
@@ -1031,6 +1038,41 @@
                 return { willTransfer, wontTransfer };
             },
 
+            generateAllAppsIcon() {
+                // Draw the AOSP 6-dot all-apps icon (3 cols x 2 rows)
+                const size = 192;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+
+                const dotRadius = 12;
+                const cols = 3;
+                const rows = 2;
+                const spacingX = size / (cols + 1);
+                const spacingY = size / (rows + 1);
+
+                ctx.fillStyle = '#ffffff';
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        const x = spacingX * (col + 1);
+                        const y = spacingY * (row + 1);
+                        ctx.beginPath();
+                        ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                // Convert to PNG blob for SQLite
+                const dataUrl = canvas.toDataURL('image/png');
+                const binary = atob(dataUrl.split(',')[1]);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                return bytes;
+            },
+
             getWidgetName(provider) {
                 if (!provider) return null;
                 const parts = provider.split('/');
@@ -1107,57 +1149,56 @@
 
                 // Insert items (excluding widgets)
                 const stmt = db.prepare(`
-                    INSERT INTO favorites (_id, title, intent, container, screen, cellX, cellY, spanX, spanY, itemType, rank)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO favorites (_id, title, intent, container, screen, cellX, cellY, spanX, spanY, itemType, icon, rank)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
+
+                // Generate all-apps icon (6 dots in 2 rows of 3)
+                const allAppsIcon = this.generateAllAppsIcon();
 
                 let id = 1;
                 const idMap = {}; // Map old IDs to new IDs for folders
 
+                const insertItem = (item, container, screen, cellX, cellY, rank) => {
+                    if (item.itemType === 4) return; // Skip widgets
+                    if (!item.intent && item.itemType !== 2) return; // Skip items with no intent (except folders)
+
+                    const oldId = item._id;
+                    idMap[oldId] = id;
+
+                    // All-apps shortcut uses itemType 1 (SHORTCUT) with embedded icon
+                    const itemType = item.isAllApps ? 1 : item.itemType;
+                    const icon = item.isAllApps ? allAppsIcon : null;
+
+                    stmt.run([
+                        id++,
+                        item.title,
+                        item.intent,
+                        container,
+                        screen,
+                        cellX,
+                        cellY,
+                        Math.max(1, Math.round(item.spanX || 1)),
+                        Math.max(1, Math.round(item.spanY || 1)),
+                        itemType,
+                        icon,
+                        rank
+                    ]);
+                };
+
                 // Process screens
                 this.novaBackup.screens.forEach(screen => {
                     screen.items.forEach(item => {
-                        if (item.itemType === 4) return; // Skip widgets
-                        if (!item.intent && item.itemType !== 2) return; // Skip items with no intent (except folders)
-
-                        const oldId = item._id;
-                        idMap[oldId] = id;
-
-                        stmt.run([
-                            id++,
-                            item.title,
-                            item.intent,
-                            -100, // CONTAINER_DESKTOP
-                            item.screen || 0,
-                            Math.round(item.cellX || 0),
-                            Math.round(item.cellY || 0),
-                            Math.max(1, Math.round(item.spanX || 1)),
-                            Math.max(1, Math.round(item.spanY || 1)),
-                            item.itemType,
-                            item.rank || 0
-                        ]);
+                        insertItem(item, -100, item.screen || 0,
+                            Math.round(item.cellX || 0), Math.round(item.cellY || 0),
+                            item.rank || 0);
                     });
                 });
 
                 // Process dock (limited to detected dock columns)
                 const hotseatLimit = this.novaBackup.dockCols || 5;
                 this.novaBackup.dock.slice(0, hotseatLimit).forEach((item, index) => {
-                    const oldId = item._id;
-                    idMap[oldId] = id;
-
-                    stmt.run([
-                        id++,
-                        item.title,
-                        item.intent,
-                        -101, // CONTAINER_HOTSEAT
-                        0,
-                        index, // cellX = position in dock
-                        0,
-                        1,
-                        1,
-                        item.itemType,
-                        index
-                    ]);
+                    insertItem(item, -101, 0, index, 0, index);
                 });
 
                 // Process folder contents
