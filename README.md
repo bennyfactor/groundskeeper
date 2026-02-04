@@ -9,6 +9,7 @@ A client-side web app for viewing Lawnchair launcher backup files.
 - 📊 See backup metadata (version, grid size, creation date)
 - 🔒 Privacy-first: everything runs in your browser, files never leave your device
 - 📲 Mobile-friendly responsive design
+- 🔄 Import Nova Launcher backups and convert to Lawnchair format
 
 ## Usage
 
@@ -23,6 +24,17 @@ In Lawnchair:
 2. Go to Backup & Restore
 3. Tap "Create Backup"
 4. Share or save the `.lawnchairbackup` file
+
+## Importing from Nova Launcher
+
+1. In Nova: Settings > Backup & Import > Backup
+2. Transfer the `.novabackup` file to your computer
+3. Open Groundskeeper and click "Import Nova Backup"
+4. Review what will transfer (apps, folders, dock) and what won't (widgets)
+5. Click "Generate Lawnchair Backup"
+6. Restore the generated file in Lawnchair
+
+**Note:** Widgets cannot be transferred between launchers due to Android security restrictions. You'll need to re-add them manually in Lawnchair.
 
 ## Development
 
