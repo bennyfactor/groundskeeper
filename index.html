@@ -67,6 +67,16 @@
                         </span>
                         <input type="file" class="hidden" accept=".lawnchairbackup,.zip" @change="handleFileSelect($event)">
                     </label>
+                    <p class="mt-6 text-sm text-gray-400">
+                        ───────── or ─────────
+                    </p>
+                    <p class="mt-4 text-sm text-gray-600">Migrating from Nova Launcher?</p>
+                    <label class="mt-2 inline-block cursor-pointer">
+                        <span class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
+                            Import Nova Backup
+                        </span>
+                        <input type="file" class="hidden" accept=".novabackup,.zip" @change="handleNovaFileSelect($event)">
+                    </label>
                     <p class="mt-6 text-xs text-gray-400">Your backup stays on your device. Nothing is uploaded.</p>
                 </div>
             </div>
