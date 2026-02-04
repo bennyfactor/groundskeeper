@@ -48,7 +48,7 @@
             </header>
 
             <!-- No file loaded - show drop zone -->
-            <div x-show="!backup" class="max-w-2xl mx-auto mt-12 px-4">
+            <div x-show="!backup && !novaMode" class="max-w-2xl mx-auto mt-12 px-4">
                 <div
                     @dragover.prevent="dragging = true"
                     @dragleave.prevent="dragging = false"
@@ -96,6 +96,103 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
                     </button>
+                </div>
+            </div>
+
+            <!-- Nova Import Preview -->
+            <div x-show="novaMode && novaPreview" class="max-w-4xl mx-auto mt-8 px-4">
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-2">Nova Backup Preview</h2>
+                    <p class="text-sm text-gray-500 mb-6" x-text="novaBackup?.name"></p>
+
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- Will Transfer -->
+                        <div>
+                            <h3 class="flex items-center gap-2 text-green-700 font-semibold mb-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                Will Transfer
+                            </h3>
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                                    <span class="text-sm">App shortcuts</span>
+                                    <span class="text-sm font-medium text-green-700" x-text="novaPreview?.willTransfer?.apps?.length || 0"></span>
+                                </div>
+                                <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                                    <span class="text-sm">Folders</span>
+                                    <span class="text-sm font-medium text-green-700" x-text="novaPreview?.willTransfer?.folders?.length || 0"></span>
+                                </div>
+                                <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                                    <span class="text-sm">Dock items</span>
+                                    <span class="text-sm font-medium text-green-700" x-text="novaPreview?.willTransfer?.dock?.length || 0"></span>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+                                <p class="text-xs text-gray-500">Grid Size</p>
+                                <p class="text-sm font-medium" x-text="`${novaBackup?.gridCols || 5} x ${novaBackup?.gridRows || 6}`"></p>
+                            </div>
+                        </div>
+
+                        <!-- Won't Transfer -->
+                        <div>
+                            <h3 class="flex items-center gap-2 text-amber-700 font-semibold mb-3">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                Won't Transfer
+                            </h3>
+                            <div class="space-y-2">
+                                <template x-if="novaPreview?.wontTransfer?.widgets?.length">
+                                    <div class="p-3 bg-amber-50 rounded-lg">
+                                        <p class="text-sm font-medium text-amber-800 mb-1">Widgets</p>
+                                        <p class="text-xs text-amber-600">Must be re-added manually in Lawnchair</p>
+                                        <ul class="mt-2 text-xs text-gray-600 space-y-1">
+                                            <template x-for="widget in novaPreview?.wontTransfer?.widgets" :key="widget.provider">
+                                                <li x-text="widget.title"></li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                                <template x-if="novaPreview?.wontTransfer?.dockOverflow?.length">
+                                    <div class="p-3 bg-amber-50 rounded-lg">
+                                        <p class="text-sm font-medium text-amber-800 mb-1">Dock overflow</p>
+                                        <p class="text-xs text-amber-600" x-text="`${novaPreview.wontTransfer.dockOverflow.length} items exceed Lawnchair's dock limit`"></p>
+                                    </div>
+                                </template>
+                                <template x-if="!novaPreview?.wontTransfer?.widgets?.length && !novaPreview?.wontTransfer?.dockOverflow?.length">
+                                    <p class="text-sm text-gray-500 italic">Nothing lost in this backup!</p>
+                                </template>
+                            </div>
+
+                            <div class="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-500">
+                                <p class="font-medium text-gray-600 mb-1">Also not transferred:</p>
+                                <ul class="list-disc list-inside space-y-0.5">
+                                    <li>Gestures</li>
+                                    <li>Custom icons</li>
+                                    <li>App drawer groups</li>
+                                    <li>Visual settings</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-8 flex flex-wrap gap-3">
+                        <button
+                            @click="generateLawnchairBackup()"
+                            class="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                        >
+                            Generate Lawnchair Backup
+                        </button>
+                        <button
+                            @click="cancelNovaImport()"
+                            class="px-4 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -907,6 +1004,12 @@
                 const parts = provider.split('/');
                 const className = parts[parts.length - 1];
                 return className.replace(/([A-Z])/g, ' $1').trim();
+            },
+
+            cancelNovaImport() {
+                this.novaMode = false;
+                this.novaBackup = null;
+                this.novaPreview = null;
             }
         }
     }
