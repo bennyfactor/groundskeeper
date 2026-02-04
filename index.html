@@ -133,6 +133,11 @@
                                 <p class="text-xs text-gray-500">Grid Size</p>
                                 <p class="text-sm font-medium" x-text="`${novaBackup?.gridCols || 5} x ${novaBackup?.gridRows || 6}`"></p>
                             </div>
+                            <template x-if="novaBackup?.gridCols > 7 || novaBackup?.gridRows > 8">
+                                <div class="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
+                                    Large grid size may not display correctly in Lawnchair
+                                </div>
+                            </template>
                         </div>
 
                         <!-- Won't Transfer -->
@@ -854,6 +859,11 @@
                     };
 
                     this.novaPreview = this.generateNovaPreview(this.novaBackup);
+
+                    // Check for empty backup
+                    if (novaData.items.length === 0) {
+                        console.warn('Nova backup appears to be empty');
+                    }
 
                     console.log('Nova backup parsed:', this.novaBackup);
                     console.log('Preview:', this.novaPreview);
