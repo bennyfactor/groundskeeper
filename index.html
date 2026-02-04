@@ -836,19 +836,23 @@
 
                     const zip = await JSZip.loadAsync(file);
 
-                    if (!zip.file('launcher.db')) {
-                        throw new Error('This doesn\'t appear to be a valid Nova backup (missing launcher.db)');
+                    // Nova backups use nova.db; older versions may use launcher.db
+                    const dbFile = zip.file('nova.db') || zip.file('launcher.db');
+                    if (!dbFile) {
+                        throw new Error('This doesn\'t appear to be a valid Nova backup (missing nova.db)');
                     }
 
-                    const dbFile = zip.file('launcher.db');
                     const dbData = await dbFile.async('arraybuffer');
                     const novaData = this.parseNovaDatabase(dbData);
 
+                    // Parse grid settings from nova.xml or preferences XML
                     let gridCols = 5, gridRows = 6, dockCols = 5;
+                    const novaXml = zip.file('nova.xml');
                     const prefsFile = Object.keys(zip.files).find(f => f.endsWith('_launcher_preferences.xml'));
-                    if (prefsFile) {
-                        const prefsXml = await zip.file(prefsFile).async('text');
-                        const parsed = this.parseNovaPreferences(prefsXml);
+                    const xmlSource = novaXml || (prefsFile ? zip.file(prefsFile) : null);
+                    if (xmlSource) {
+                        const xml = await xmlSource.async('text');
+                        const parsed = this.parseNovaPreferences(xml);
                         gridCols = parsed.gridCols || gridCols;
                         gridRows = parsed.gridRows || gridRows;
                         dockCols = parsed.dockCols || dockCols;
@@ -914,8 +918,16 @@
                         const match = item.intent.match(/component=([^;/]+)/);
                         if (match) item.packageName = match[1];
                     }
+                    // Round float positions (Nova sub-grid uses half-cell values)
+                    item.cellX = Math.round(item.cellX || 0);
+                    item.cellY = Math.round(item.cellY || 0);
+                    item.spanX = Math.max(1, Math.round(item.spanX || 1));
+                    item.spanY = Math.max(1, Math.round(item.spanY || 1));
                     return item;
-                });
+                }).filter(item =>
+                    // Filter out metadata rows and invalid entries
+                    item._id > 0 && item.itemType >= 0
+                );
 
                 const CONTAINER_DESKTOP = -100;
                 const CONTAINER_HOTSEAT = -101;
@@ -965,13 +977,16 @@
             parseNovaPreferences(xml) {
                 const result = { gridCols: 5, gridRows: 6, dockCols: 5 };
 
-                const colsMatch = xml.match(/name="desktop_grid_columns"[^>]*>(\d+)</);
+                // Try both nova.xml key names and legacy preference names
+                const colsMatch = xml.match(/name="desktop_grid_cols"[^>]*>(\d+)</) ||
+                                  xml.match(/name="desktop_grid_columns"[^>]*>(\d+)</);
                 if (colsMatch) result.gridCols = parseInt(colsMatch[1], 10);
 
                 const rowsMatch = xml.match(/name="desktop_grid_rows"[^>]*>(\d+)</);
                 if (rowsMatch) result.gridRows = parseInt(rowsMatch[1], 10);
 
-                const dockMatch = xml.match(/name="dock_icons"[^>]*>(\d+)</);
+                const dockMatch = xml.match(/name="dock_grid_cols"[^>]*>(\d+)</) ||
+                                  xml.match(/name="dock_icons"[^>]*>(\d+)</);
                 if (dockMatch) result.dockCols = parseInt(dockMatch[1], 10);
 
                 return result;
@@ -983,7 +998,7 @@
 
                 novaBackup.screens.forEach(screen => {
                     screen.items.forEach(item => {
-                        if (item.itemType === 0 || item.itemType === 6) {
+                        if ((item.itemType === 0 || item.itemType === 6) && item.intent) {
                             willTransfer.apps.push(item);
                         } else if (item.itemType === 2) {
                             willTransfer.folders.push({
@@ -1100,6 +1115,7 @@
                 this.novaBackup.screens.forEach(screen => {
                     screen.items.forEach(item => {
                         if (item.itemType === 4) return; // Skip widgets
+                        if (!item.intent && item.itemType !== 2) return; // Skip items with no intent (except folders)
 
                         const oldId = item._id;
                         idMap[oldId] = id;
@@ -1110,10 +1126,10 @@
                             item.intent,
                             -100, // CONTAINER_DESKTOP
                             item.screen || 0,
-                            item.cellX,
-                            item.cellY,
-                            item.spanX || 1,
-                            item.spanY || 1,
+                            Math.round(item.cellX || 0),
+                            Math.round(item.cellY || 0),
+                            Math.max(1, Math.round(item.spanX || 1)),
+                            Math.max(1, Math.round(item.spanY || 1)),
                             item.itemType,
                             item.rank || 0
                         ]);
