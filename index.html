@@ -1010,6 +1010,175 @@
                 this.novaMode = false;
                 this.novaBackup = null;
                 this.novaPreview = null;
+            },
+
+            async generateLawnchairBackup() {
+                if (!this.novaBackup) return;
+
+                this.loading = true;
+                try {
+                    const zip = new JSZip();
+
+                    // Generate launcher.db
+                    const dbBuffer = this.generateLawnchairDatabase();
+                    zip.file('launcher.db', dbBuffer);
+
+                    // Generate info.pb
+                    const infoBuffer = await this.generateLawnchairInfo();
+                    zip.file('info.pb', infoBuffer);
+
+                    // Generate and download the zip
+                    const blob = await zip.generateAsync({ type: 'blob' });
+                    const filename = this.novaBackup.name.replace('.novabackup', '') + '.lawnchairbackup';
+
+                    // Download
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    console.log('Generated Lawnchair backup:', filename);
+                } catch (error) {
+                    console.error('Error generating backup:', error);
+                    this.error = 'Failed to generate Lawnchair backup: ' + error.message;
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            generateLawnchairDatabase() {
+                const db = new this.SQL.Database();
+
+                // Create favorites table (Lawnchair schema)
+                db.run(`
+                    CREATE TABLE favorites (
+                        _id INTEGER PRIMARY KEY,
+                        title TEXT,
+                        intent TEXT,
+                        container INTEGER NOT NULL,
+                        screen INTEGER,
+                        cellX INTEGER NOT NULL,
+                        cellY INTEGER NOT NULL,
+                        spanX INTEGER NOT NULL DEFAULT 1,
+                        spanY INTEGER NOT NULL DEFAULT 1,
+                        itemType INTEGER NOT NULL,
+                        appWidgetProvider TEXT,
+                        appWidgetId INTEGER,
+                        icon BLOB,
+                        rank INTEGER NOT NULL DEFAULT 0
+                    )
+                `);
+
+                // Insert items (excluding widgets)
+                const stmt = db.prepare(`
+                    INSERT INTO favorites (_id, title, intent, container, screen, cellX, cellY, spanX, spanY, itemType, rank)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `);
+
+                let id = 1;
+                const idMap = {}; // Map old IDs to new IDs for folders
+
+                // Process screens
+                this.novaBackup.screens.forEach(screen => {
+                    screen.items.forEach(item => {
+                        if (item.itemType === 4) return; // Skip widgets
+
+                        const oldId = item._id;
+                        idMap[oldId] = id;
+
+                        stmt.run([
+                            id++,
+                            item.title,
+                            item.intent,
+                            -100, // CONTAINER_DESKTOP
+                            item.screen || 0,
+                            item.cellX,
+                            item.cellY,
+                            item.spanX || 1,
+                            item.spanY || 1,
+                            item.itemType,
+                            item.rank || 0
+                        ]);
+                    });
+                });
+
+                // Process dock (limited to hotseat)
+                const hotseatLimit = 5;
+                this.novaBackup.dock.slice(0, hotseatLimit).forEach((item, index) => {
+                    const oldId = item._id;
+                    idMap[oldId] = id;
+
+                    stmt.run([
+                        id++,
+                        item.title,
+                        item.intent,
+                        -101, // CONTAINER_HOTSEAT
+                        0,
+                        index, // cellX = position in dock
+                        0,
+                        1,
+                        1,
+                        item.itemType,
+                        index
+                    ]);
+                });
+
+                // Process folder contents
+                Object.entries(this.novaBackup.folders).forEach(([folderId, contents]) => {
+                    const newFolderId = idMap[parseInt(folderId)];
+                    if (!newFolderId) return; // Folder wasn't transferred
+
+                    contents.forEach((item, index) => {
+                        stmt.run([
+                            id++,
+                            item.title,
+                            item.intent,
+                            newFolderId, // Container is the folder ID
+                            0,
+                            0,
+                            0,
+                            1,
+                            1,
+                            item.itemType,
+                            index
+                        ]);
+                    });
+                });
+
+                stmt.free();
+
+                // Export to buffer
+                const data = db.export();
+                db.close();
+
+                return data;
+            },
+
+            async generateLawnchairInfo() {
+                const root = await protobuf.load('proto/lawnchair.proto');
+                const BackupInfo = root.lookupType('BackupInfo');
+
+                const info = {
+                    lawnchairVersion: 'Imported from Nova',
+                    createdAt: {
+                        seconds: Math.floor(Date.now() / 1000),
+                        nanos: 0
+                    },
+                    gridState: {
+                        gridSize: `${this.novaBackup.gridCols}x${this.novaBackup.gridRows}`,
+                        hotseatCount: 5
+                    }
+                };
+
+                const errMsg = BackupInfo.verify(info);
+                if (errMsg) throw new Error(errMsg);
+
+                const message = BackupInfo.create(info);
+                return BackupInfo.encode(message).finish();
             }
         }
     }
