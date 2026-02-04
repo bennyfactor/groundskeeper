@@ -715,6 +715,198 @@
                     dock,
                     allItems: items
                 };
+            },
+
+            async loadNovaFile(file) {
+                console.log('Loading Nova backup:', file.name);
+                this.loading = true;
+                this.error = null;
+                this.novaMode = true;
+
+                try {
+                    if (!file.name.endsWith('.novabackup') && !file.name.endsWith('.zip')) {
+                        throw new Error('Please select a .novabackup file');
+                    }
+
+                    const zip = await JSZip.loadAsync(file);
+
+                    if (!zip.file('launcher.db')) {
+                        throw new Error('This doesn\'t appear to be a valid Nova backup (missing launcher.db)');
+                    }
+
+                    const dbFile = zip.file('launcher.db');
+                    const dbData = await dbFile.async('arraybuffer');
+                    const novaData = this.parseNovaDatabase(dbData);
+
+                    let gridCols = 5, gridRows = 6, dockCols = 5;
+                    const prefsFile = Object.keys(zip.files).find(f => f.endsWith('_launcher_preferences.xml'));
+                    if (prefsFile) {
+                        const prefsXml = await zip.file(prefsFile).async('text');
+                        const parsed = this.parseNovaPreferences(prefsXml);
+                        gridCols = parsed.gridCols || gridCols;
+                        gridRows = parsed.gridRows || gridRows;
+                        dockCols = parsed.dockCols || dockCols;
+                    }
+
+                    this.novaBackup = {
+                        name: file.name,
+                        ...novaData,
+                        gridCols,
+                        gridRows,
+                        dockCols
+                    };
+
+                    this.novaPreview = this.generateNovaPreview(this.novaBackup);
+
+                    console.log('Nova backup parsed:', this.novaBackup);
+                    console.log('Preview:', this.novaPreview);
+                } catch (error) {
+                    console.error('Error loading Nova backup:', error);
+                    this.error = error.message;
+                    this.novaMode = false;
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            parseNovaDatabase(data) {
+                const db = new this.SQL.Database(new Uint8Array(data));
+
+                let columns;
+                try {
+                    const tableInfo = db.exec("PRAGMA table_info(favorites)");
+                    columns = tableInfo[0].values.map(row => row[1]);
+                } catch (e) {
+                    db.close();
+                    throw new Error('Could not read favorites table');
+                }
+
+                const favoritesResult = db.exec(`
+                    SELECT _id, title, intent, container, screen,
+                           cellX, cellY, spanX, spanY, itemType,
+                           appWidgetProvider, rank
+                    FROM favorites
+                `);
+
+                if (!favoritesResult.length) {
+                    db.close();
+                    return { items: [], screens: [], dock: [], folders: {}, widgets: [] };
+                }
+
+                const cols = favoritesResult[0].columns;
+                const rows = favoritesResult[0].values;
+
+                const items = rows.map(row => {
+                    const item = {};
+                    cols.forEach((col, i) => item[col] = row[i]);
+                    if (item.intent) {
+                        const match = item.intent.match(/component=([^;/]+)/);
+                        if (match) item.packageName = match[1];
+                    }
+                    return item;
+                });
+
+                const CONTAINER_DESKTOP = -100;
+                const CONTAINER_HOTSEAT = -101;
+
+                const screens = {};
+                const dock = [];
+                const folders = {};
+                const widgets = [];
+
+                items.forEach(item => {
+                    if (item.itemType === 4) {
+                        widgets.push(item);
+                    }
+
+                    if (item.container === CONTAINER_DESKTOP) {
+                        const screenNum = item.screen || 0;
+                        if (!screens[screenNum]) screens[screenNum] = [];
+                        screens[screenNum].push(item);
+                    } else if (item.container === CONTAINER_HOTSEAT) {
+                        dock.push(item);
+                    } else if (item.container > 0) {
+                        if (!folders[item.container]) folders[item.container] = [];
+                        folders[item.container].push(item);
+                    }
+                });
+
+                dock.sort((a, b) => (a.rank ?? a.cellX) - (b.rank ?? b.cellX));
+
+                items.filter(i => i.itemType === 2).forEach(folder => {
+                    folder.contents = folders[folder._id] || [];
+                    folder.contents.sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+                });
+
+                db.close();
+
+                return {
+                    items,
+                    screens: Object.entries(screens)
+                        .sort(([a], [b]) => Number(a) - Number(b))
+                        .map(([num, items]) => ({ number: Number(num), items })),
+                    dock,
+                    widgets,
+                    folders
+                };
+            },
+
+            parseNovaPreferences(xml) {
+                const result = { gridCols: 5, gridRows: 6, dockCols: 5 };
+
+                const colsMatch = xml.match(/name="desktop_grid_columns"[^>]*>(\d+)</);
+                if (colsMatch) result.gridCols = parseInt(colsMatch[1], 10);
+
+                const rowsMatch = xml.match(/name="desktop_grid_rows"[^>]*>(\d+)</);
+                if (rowsMatch) result.gridRows = parseInt(rowsMatch[1], 10);
+
+                const dockMatch = xml.match(/name="dock_icons"[^>]*>(\d+)</);
+                if (dockMatch) result.dockCols = parseInt(dockMatch[1], 10);
+
+                return result;
+            },
+
+            generateNovaPreview(novaBackup) {
+                const willTransfer = { apps: [], folders: [], dock: [] };
+                const wontTransfer = { widgets: [], dockOverflow: [] };
+
+                novaBackup.screens.forEach(screen => {
+                    screen.items.forEach(item => {
+                        if (item.itemType === 0 || item.itemType === 6) {
+                            willTransfer.apps.push(item);
+                        } else if (item.itemType === 2) {
+                            willTransfer.folders.push({
+                                ...item,
+                                contentCount: item.contents?.length || 0
+                            });
+                        }
+                    });
+                });
+
+                novaBackup.widgets.forEach(widget => {
+                    wontTransfer.widgets.push({
+                        title: widget.title || this.getWidgetName(widget.appWidgetProvider) || 'Widget',
+                        provider: widget.appWidgetProvider
+                    });
+                });
+
+                const hotseatLimit = 5;
+                novaBackup.dock.forEach((item, index) => {
+                    if (index < hotseatLimit) {
+                        willTransfer.dock.push(item);
+                    } else {
+                        wontTransfer.dockOverflow.push(item);
+                    }
+                });
+
+                return { willTransfer, wontTransfer };
+            },
+
+            getWidgetName(provider) {
+                if (!provider) return null;
+                const parts = provider.split('/');
+                const className = parts[parts.length - 1];
+                return className.replace(/([A-Z])/g, ' $1').trim();
             }
         }
     }
