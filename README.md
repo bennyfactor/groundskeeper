@@ -12,7 +12,7 @@ A client-side web app for viewing Lawnchair launcher backup files.
 
 ## Usage
 
-1. Visit [groundskeeper.example.com](https://groundskeeper.example.com) (or open `index.html` locally)
+1. Visit [bennyfactor.github.io/groundskeeper](https://bennyfactor.github.io/groundskeeper/) (or open `index.html` locally)
 2. Drop your `.lawnchairbackup` file onto the page
 3. Browse your backup contents
 
