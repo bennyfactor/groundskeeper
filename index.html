@@ -925,8 +925,9 @@
                     item.spanY = Math.max(1, Math.round(item.spanY || 1));
                     return item;
                 }).filter(item =>
-                    // Filter out metadata rows and invalid entries
-                    item._id > 0 && item.itemType >= 0
+                    // Filter out metadata rows, invalid entries, and Nova internal actions
+                    item._id > 0 && item.itemType >= 0 &&
+                    !(item.intent && item.intent.includes('LAUNCHER_ACTION=APP_DRAWER'))
                 );
 
                 const CONTAINER_DESKTOP = -100;
@@ -1018,7 +1019,7 @@
                     });
                 });
 
-                const hotseatLimit = 5;
+                const hotseatLimit = novaBackup.dockCols || 5;
                 novaBackup.dock.forEach((item, index) => {
                     if (index < hotseatLimit) {
                         willTransfer.dock.push(item);
@@ -1138,8 +1139,8 @@
                     });
                 });
 
-                // Process dock (limited to hotseat)
-                const hotseatLimit = 5;
+                // Process dock (limited to detected dock columns)
+                const hotseatLimit = this.novaBackup.dockCols || 5;
                 this.novaBackup.dock.slice(0, hotseatLimit).forEach((item, index) => {
                     const oldId = item._id;
                     idMap[oldId] = id;
@@ -1203,7 +1204,7 @@
                     },
                     gridState: {
                         gridSize: `${this.novaBackup.gridCols}x${this.novaBackup.gridRows}`,
-                        hotseatCount: 5
+                        hotseatCount: this.novaBackup.dockCols || 5
                     }
                 };
 
