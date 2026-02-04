@@ -977,17 +977,19 @@
             parseNovaPreferences(xml) {
                 const result = { gridCols: 5, gridRows: 6, dockCols: 5 };
 
-                // Try both nova.xml key names and legacy preference names
-                const colsMatch = xml.match(/name="desktop_grid_cols"[^>]*>(\d+)</) ||
-                                  xml.match(/name="desktop_grid_columns"[^>]*>(\d+)</);
-                if (colsMatch) result.gridCols = parseInt(colsMatch[1], 10);
+                // Nova XML uses attribute format: <int name="key" value="N" />
+                // or text content format: <int name="key">N</int>
+                const getInt = (name) => {
+                    const attrMatch = xml.match(new RegExp(`name="${name}"[^>]*value="(\\d+)"`));
+                    if (attrMatch) return parseInt(attrMatch[1], 10);
+                    const textMatch = xml.match(new RegExp(`name="${name}"[^>]*>(\\d+)<`));
+                    if (textMatch) return parseInt(textMatch[1], 10);
+                    return null;
+                };
 
-                const rowsMatch = xml.match(/name="desktop_grid_rows"[^>]*>(\d+)</);
-                if (rowsMatch) result.gridRows = parseInt(rowsMatch[1], 10);
-
-                const dockMatch = xml.match(/name="dock_grid_cols"[^>]*>(\d+)</) ||
-                                  xml.match(/name="dock_icons"[^>]*>(\d+)</);
-                if (dockMatch) result.dockCols = parseInt(dockMatch[1], 10);
+                result.gridCols = getInt('desktop_grid_cols') || getInt('desktop_grid_columns') || result.gridCols;
+                result.gridRows = getInt('desktop_grid_rows') || result.gridRows;
+                result.dockCols = getInt('dock_grid_cols') || getInt('dock_icons') || result.dockCols;
 
                 return result;
             },
