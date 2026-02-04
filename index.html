@@ -598,7 +598,11 @@
                 this.dragging = false;
                 const file = event.dataTransfer.files[0];
                 if (file) {
-                    this.loadFile(file);
+                    if (file.name.endsWith('.novabackup')) {
+                        this.loadNovaFile(file);
+                    } else {
+                        this.loadFile(file);
+                    }
                 }
             },
 
