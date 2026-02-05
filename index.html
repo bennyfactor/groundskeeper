@@ -710,7 +710,7 @@
 
                 // Parse grid size string (e.g., "5x7")
                 if (info.gridState?.gridSize) {
-                    const [cols, rows] = info.gridState.gridSize.split('x').map(Number);
+                    const [cols, rows] = info.gridState.gridSize.split(/[x,]/).map(Number);
                     info.gridState.cols = cols;
                     info.gridState.rows = rows;
                 }
@@ -887,10 +887,8 @@
             parseNovaDatabase(data) {
                 const db = new this.SQL.Database(new Uint8Array(data));
 
-                let columns;
                 try {
-                    const tableInfo = db.exec("PRAGMA table_info(favorites)");
-                    columns = tableInfo[0].values.map(row => row[1]);
+                    db.exec("PRAGMA table_info(favorites)");
                 } catch (e) {
                     db.close();
                     throw new Error('Could not read favorites table');
@@ -1144,14 +1142,14 @@
                         spanY INTEGER NOT NULL DEFAULT 1,
                         itemType INTEGER NOT NULL,
                         appWidgetProvider TEXT,
-                        appWidgetId INTEGER,
+                        appWidgetId INTEGER NOT NULL DEFAULT -1,
                         icon BLOB,
                         rank INTEGER NOT NULL DEFAULT 0,
                         modified INTEGER NOT NULL DEFAULT 0,
                         restored INTEGER NOT NULL DEFAULT 16,
                         profileId INTEGER NOT NULL DEFAULT 0,
                         options INTEGER NOT NULL DEFAULT 0,
-                        appWidgetSource INTEGER NOT NULL DEFAULT 0
+                        appWidgetSource INTEGER NOT NULL DEFAULT -1
                     )
                 `);
 
@@ -1226,6 +1224,7 @@
                             1,
                             1,
                             item.itemType,
+                            null, // icon
                             index
                         ]);
                     });
