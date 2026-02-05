@@ -1101,6 +1101,9 @@
                     const infoBuffer = await this.generateLawnchairInfo();
                     zip.file('info.pb', infoBuffer);
 
+                    // Generate prefs.xml with grid/dock settings
+                    zip.file('com.android.launcher3.prefs.xml', this.generateLawnchairPrefs());
+
                     // Generate and download the zip
                     const blob = await zip.generateAsync({ type: 'blob' });
                     const filename = this.novaBackup.name.replace('.novabackup', '') + '.lawnchairbackup';
@@ -1127,7 +1130,7 @@
             generateLawnchairDatabase() {
                 const db = new this.SQL.Database();
 
-                // Create favorites table (Lawnchair schema)
+                // Create favorites table (Lawnchair/Launcher3 schema)
                 db.run(`
                     CREATE TABLE favorites (
                         _id INTEGER PRIMARY KEY,
@@ -1143,14 +1146,19 @@
                         appWidgetProvider TEXT,
                         appWidgetId INTEGER,
                         icon BLOB,
-                        rank INTEGER NOT NULL DEFAULT 0
+                        rank INTEGER NOT NULL DEFAULT 0,
+                        modified INTEGER NOT NULL DEFAULT 0,
+                        restored INTEGER NOT NULL DEFAULT 16,
+                        profileId INTEGER NOT NULL DEFAULT 0,
+                        options INTEGER NOT NULL DEFAULT 0,
+                        appWidgetSource INTEGER NOT NULL DEFAULT 0
                     )
                 `);
 
                 // Insert items (excluding widgets)
                 const stmt = db.prepare(`
-                    INSERT INTO favorites (_id, title, intent, container, screen, cellX, cellY, spanX, spanY, itemType, icon, rank)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO favorites (_id, title, intent, container, screen, cellX, cellY, spanX, spanY, itemType, icon, rank, restored, profileId)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 16, 0)
                 `);
 
                 // Generate all-apps icon (6 dots in 2 rows of 3)
@@ -1232,12 +1240,37 @@
                 return data;
             },
 
+            generateLawnchairPrefs() {
+                const cols = this.novaBackup.gridCols || 5;
+                const rows = this.novaBackup.gridRows || 6;
+                const hotseat = this.novaBackup.dockCols || 5;
+
+                return `<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <int name="pref_workspaceColumns" value="${cols}" />
+    <int name="pref_workspaceRows" value="${rows}" />
+    <int name="pref_hotseatColumns" value="${hotseat}" />
+    <int name="migration_src_hotseat_count" value="${hotseat}" />
+    <int name="migration_src_device_type" value="0" />
+    <string name="migration_src_workspace_size">${cols},${rows},${hotseat}</string>
+    <string name="migration_src_db_file">launcher_${rows}_${cols}_${hotseat}.db</string>
+    <int name="version" value="2" />
+    <boolean name="launcher.apps_view_shown" value="true" />
+    <boolean name="pref_add_icon_to_home" value="false" />
+</map>
+`;
+            },
+
             async generateLawnchairInfo() {
                 const root = await protobuf.load('proto/lawnchair.proto');
                 const BackupInfo = root.lookupType('BackupInfo');
 
+                const cols = this.novaBackup.gridCols || 5;
+                const rows = this.novaBackup.gridRows || 6;
+                const hotseat = this.novaBackup.dockCols || 5;
+
                 const info = {
-                    lawnchairVersion: 1,
+                    lawnchairVersion: 15000202,
                     backupVersion: 1,
                     contents: 1, // INCLUDE_LAYOUT_AND_SETTINGS bitmask
                     createdAt: {
@@ -1245,8 +1278,8 @@
                         nanos: 0
                     },
                     gridState: {
-                        gridSize: `${this.novaBackup.gridCols}x${this.novaBackup.gridRows}`,
-                        hotseatCount: this.novaBackup.dockCols || 5
+                        gridSize: `${cols},${rows}`,
+                        hotseatCount: hotseat
                     }
                 };
 
